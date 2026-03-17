@@ -5,7 +5,10 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            CameraPreviewView(session: viewModel.detector.session)
+            CameraPreviewView(
+                session: viewModel.detector.session,
+                isMirrored: viewModel.isUsingFrontCamera
+            )
                 .ignoresSafeArea()
 
             LinearGradient(
@@ -38,8 +41,25 @@ struct ContentView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("MambaJump")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
+            HStack(alignment: .top) {
+                Text("MambaJump")
+                    .font(.system(size: 34, weight: .bold, design: .rounded))
+
+                Spacer()
+
+                Button(action: viewModel.switchCamera) {
+                    Label(
+                        viewModel.isUsingFrontCamera ? "Front Cam" : "Back Cam",
+                        systemImage: "camera.rotate"
+                    )
+                    .font(.footnote.weight(.semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(0.16), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
+            }
 
             Text(viewModel.statusText)
                 .font(.subheadline)
@@ -71,6 +91,7 @@ struct ContentView: View {
                 .font(.headline)
 
             Text("Keep your whole body visible, point the phone from the side or front, and stand far enough back that your feet never leave the frame.")
+            Text("Use the camera button above to switch between the rear camera for room setup and the front camera for self-check framing.")
             Text("The app estimates height from flight time using h = g × t² / 8, so stable lighting and a clear landing help accuracy.")
         }
         .font(.footnote)

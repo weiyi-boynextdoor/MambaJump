@@ -11,6 +11,7 @@ final class JumpEstimatorViewModel: ObservableObject {
     @Published var jumpHeightInches = 0.0
     @Published var isAirborne = false
     @Published var cameraAuthorized = false
+    @Published var isUsingFrontCamera = false
 
     let detector = CameraPoseDetector()
 
@@ -39,6 +40,12 @@ final class JumpEstimatorViewModel: ObservableObject {
                     : "Camera access is required to estimate jump height."
             }
         }
+
+        detector.onCameraPositionChange = { [weak self] position in
+            Task { @MainActor in
+                self?.isUsingFrontCamera = position == .front
+            }
+        }
     }
 
     func start() {
@@ -47,6 +54,12 @@ final class JumpEstimatorViewModel: ObservableObject {
 
     func stop() {
         detector.stop()
+    }
+
+    func switchCamera() {
+        resetCalibration()
+        statusText = "Switching camera. Hold still to recalibrate."
+        detector.switchCamera()
     }
 
     private func handle(observation: BodyPoseObservation?) {
@@ -99,6 +112,14 @@ final class JumpEstimatorViewModel: ObservableObject {
         baselineFootY = sorted[sorted.count / 2]
     }
 
+    private func resetCalibration() {
+        baselineFootY = nil
+        airborneStart = nil
+        recentGroundSamples.removeAll(keepingCapacity: true)
+        isAirborne = false
+        liveFootHeight = 0
+    }
+
     private func endJump(with duration: CFTimeInterval) {
         isAirborne = false
         airborneStart = nil
@@ -121,4 +142,3 @@ final class JumpEstimatorViewModel: ObservableObject {
         )
     }
 }
-

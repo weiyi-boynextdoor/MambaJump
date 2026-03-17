@@ -16,11 +16,13 @@ final class CameraPoseDetector: NSObject, ObservableObject {
 
     var onObservation: ((BodyPoseObservation?) -> Void)?
     var onAuthorizationChange: ((Bool) -> Void)?
+    var onCameraPositionChange: ((AVCaptureDevice.Position) -> Void)?
 
     private let sessionQueue = DispatchQueue(label: "mambajump.camera.session")
     private let visionQueue = DispatchQueue(label: "mambajump.camera.vision")
     private let videoOutput = AVCaptureVideoDataOutput()
     private var latestTimestamp = CMTime.invalid
+    private var currentCameraPosition: AVCaptureDevice.Position = .back
 
     func start() {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
@@ -46,6 +48,24 @@ final class CameraPoseDetector: NSObject, ObservableObject {
         }
     }
 
+    func switchCamera() {
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+
+            let nextPosition: AVCaptureDevice.Position = self.currentCameraPosition == .back ? .front : .back
+            guard self.configureSessionInput(for: nextPosition) else { return }
+
+            self.currentCameraPosition = nextPosition
+            self.latestTimestamp = .invalid
+            self.configureVideoConnection()
+
+            DispatchQueue.main.async {
+                self.onCameraPositionChange?(nextPosition)
+                self.onObservation?(nil)
+            }
+        }
+    }
+
     private func configureAndStartSession() {
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -54,14 +74,7 @@ final class CameraPoseDetector: NSObject, ObservableObject {
             self.session.beginConfiguration()
             self.session.sessionPreset = .high
 
-            self.session.inputs.forEach { self.session.removeInput($0) }
-            self.session.outputs.forEach { self.session.removeOutput($0) }
-
-            guard
-                let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back),
-                let input = try? AVCaptureDeviceInput(device: device),
-                self.session.canAddInput(input)
-            else {
+            guard self.configureSessionInput(for: self.currentCameraPosition) else {
                 self.session.commitConfiguration()
                 DispatchQueue.main.async {
                     self.onObservation?(nil)
@@ -69,24 +82,53 @@ final class CameraPoseDetector: NSObject, ObservableObject {
                 return
             }
 
-            self.session.addInput(input)
+            if !self.session.outputs.contains(self.videoOutput) {
+                self.videoOutput.videoSettings = [
+                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+                ]
+                self.videoOutput.alwaysDiscardsLateVideoFrames = true
+                self.videoOutput.setSampleBufferDelegate(self, queue: self.visionQueue)
 
-            self.videoOutput.videoSettings = [
-                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
-            ]
-            self.videoOutput.alwaysDiscardsLateVideoFrames = true
-            self.videoOutput.setSampleBufferDelegate(self, queue: self.visionQueue)
+                guard self.session.canAddOutput(self.videoOutput) else {
+                    self.session.commitConfiguration()
+                    return
+                }
 
-            guard self.session.canAddOutput(self.videoOutput) else {
-                self.session.commitConfiguration()
-                return
+                self.session.addOutput(self.videoOutput)
             }
 
-            self.session.addOutput(self.videoOutput)
-            self.videoOutput.connection(with: .video)?.videoRotationAngle = 90
+            self.configureVideoConnection()
 
             self.session.commitConfiguration()
             self.session.startRunning()
+
+            DispatchQueue.main.async {
+                self.onCameraPositionChange?(self.currentCameraPosition)
+            }
+        }
+    }
+
+    private func configureSessionInput(for position: AVCaptureDevice.Position) -> Bool {
+        session.inputs.forEach { session.removeInput($0) }
+
+        guard
+            let device = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: position),
+            let input = try? AVCaptureDeviceInput(device: device),
+            session.canAddInput(input)
+        else {
+            return false
+        }
+
+        session.addInput(input)
+        return true
+    }
+
+    private func configureVideoConnection() {
+        guard let connection = videoOutput.connection(with: .video) else { return }
+        connection.videoRotationAngle = 90
+
+        if connection.isVideoMirroringSupported {
+            connection.isVideoMirrored = currentCameraPosition == .front
         }
     }
 
@@ -103,7 +145,10 @@ final class CameraPoseDetector: NSObject, ObservableObject {
         let request = VNDetectHumanBodyPoseRequest()
 
         do {
-            let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right)
+            let handler = VNImageRequestHandler(
+                cvPixelBuffer: pixelBuffer,
+                orientation: currentCameraPosition == .front ? .leftMirrored : .right
+            )
             try handler.perform([request])
 
             guard let result = request.results?.first else {
@@ -171,16 +216,21 @@ extension CameraPoseDetector: AVCaptureVideoDataOutputSampleBufferDelegate {
 
 struct CameraPreviewView: UIViewRepresentable {
     let session: AVCaptureSession
+    let isMirrored: Bool
 
     func makeUIView(context: Context) -> PreviewView {
         let view = PreviewView()
         view.videoPreviewLayer.session = session
         view.videoPreviewLayer.videoGravity = .resizeAspectFill
+        view.videoPreviewLayer.connection?.automaticallyAdjustsVideoMirroring = false
+        view.videoPreviewLayer.connection?.isVideoMirrored = isMirrored
         return view
     }
 
     func updateUIView(_ uiView: PreviewView, context: Context) {
         uiView.videoPreviewLayer.session = session
+        uiView.videoPreviewLayer.connection?.automaticallyAdjustsVideoMirroring = false
+        uiView.videoPreviewLayer.connection?.isVideoMirrored = isMirrored
     }
 }
 
@@ -193,4 +243,3 @@ final class PreviewView: UIView {
         layer as! AVCaptureVideoPreviewLayer
     }
 }
-
