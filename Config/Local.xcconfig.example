@@ -1,0 +1,4 @@
+// Copy this file to Config/Local.xcconfig for your machine-specific signing settings.
+
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+PRODUCT_BUNDLE_IDENTIFIER = com.yourname.MambaJump

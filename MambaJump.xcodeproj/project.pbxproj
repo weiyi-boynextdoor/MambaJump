@@ -1,0 +1,232 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000011 /* MambaJumpApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000001 /* MambaJumpApp.swift */; };
+		A00000000000000000000012 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000002 /* ContentView.swift */; };
+		A00000000000000000000013 /* JumpEstimatorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000003 /* JumpEstimatorViewModel.swift */; };
+		A00000000000000000000014 /* CameraPoseDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000004 /* CameraPoseDetector.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A00000000000000000000001 /* MambaJumpApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MambaJumpApp.swift; sourceTree = "<group>"; };
+		A00000000000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A00000000000000000000003 /* JumpEstimatorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JumpEstimatorViewModel.swift; sourceTree = "<group>"; };
+		A00000000000000000000004 /* CameraPoseDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPoseDetector.swift; sourceTree = "<group>"; };
+		A00000000000000000000007 /* MambaJump.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MambaJump.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000008 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A00000000000000000000009 /* Base.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Base.xcconfig; sourceTree = "<group>"; };
+		A00000000000000000000010 /* Local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Local.xcconfig.example; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000021 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000031 = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000032 /* MambaJump */,
+				A00000000000000000000035 /* Config */,
+				A00000000000000000000033 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000032 /* MambaJump */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000001 /* MambaJumpApp.swift */,
+				A00000000000000000000002 /* ContentView.swift */,
+				A00000000000000000000003 /* JumpEstimatorViewModel.swift */,
+				A00000000000000000000004 /* CameraPoseDetector.swift */,
+				A00000000000000000000008 /* Info.plist */,
+			);
+			path = MambaJump;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000033 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000007 /* MambaJump.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000035 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000009 /* Base.xcconfig */,
+				A00000000000000000000010 /* Local.xcconfig.example */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000041 /* MambaJump */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000051 /* Build configuration list for PBXNativeTarget "MambaJump" */;
+			buildPhases = (
+				A00000000000000000000022 /* Sources */,
+				A00000000000000000000021 /* Frameworks */,
+				A00000000000000000000023 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MambaJump;
+			productName = MambaJump;
+			productReference = A00000000000000000000007 /* MambaJump.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000042 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1610;
+				LastUpgradeCheck = 1610;
+				TargetAttributes = {
+					A00000000000000000000041 = {
+						CreatedOnToolsVersion = 16.1;
+					};
+				};
+			};
+			buildConfigurationList = A00000000000000000000052 /* Build configuration list for PBXProject "MambaJump" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = A00000000000000000000031;
+			productRefGroup = A00000000000000000000033 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A00000000000000000000041 /* MambaJump */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000023 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000022 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000011 /* MambaJumpApp.swift in Sources */,
+				A00000000000000000000012 /* ContentView.swift in Sources */,
+				A00000000000000000000013 /* JumpEstimatorViewModel.swift in Sources */,
+				A00000000000000000000014 /* CameraPoseDetector.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		A00000000000000000000061 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00000000000000000000009 /* Base.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		A00000000000000000000062 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A00000000000000000000009 /* Base.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		A00000000000000000000063 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A00000000000000000000064 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000051 /* Build configuration list for PBXNativeTarget "MambaJump" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000061 /* Debug */,
+				A00000000000000000000062 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A00000000000000000000052 /* Build configuration list for PBXProject "MambaJump" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A00000000000000000000063 /* Debug */,
+				A00000000000000000000064 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000042 /* Project object */;
+}
