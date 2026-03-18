@@ -5,6 +5,12 @@ import UIKit
 
 @MainActor
 final class JumpEstimatorViewModel: ObservableObject {
+    private struct JumpCandidate {
+        let duration: CFTimeInterval
+        let takeoffTime: CFTimeInterval
+        let landingTime: CFTimeInterval
+    }
+
     enum InputMode {
         case idle
         case liveCamera
@@ -34,6 +40,7 @@ final class JumpEstimatorViewModel: ObservableObject {
     private var airborneStart: CFTimeInterval?
     private var recentGroundSamples: [CGFloat] = []
     private var importedVideoURL: URL?
+    private var importedVideoJumpCandidates: [JumpCandidate] = []
 
     private let baselineWindow = 20
     private let takeoffThreshold: CGFloat = 0.05
@@ -74,7 +81,9 @@ final class JumpEstimatorViewModel: ObservableObject {
                 guard let self else { return }
 
                 if success {
-                    if self.airTime == 0 {
+                    if self.inputMode == .importedVideo {
+                        self.finalizeImportedVideoAnalysis()
+                    } else if self.airTime == 0 {
                         self.statusText = "Video analysis finished, but no jump was confidently detected."
                     }
                 } else {
@@ -141,6 +150,7 @@ final class JumpEstimatorViewModel: ObservableObject {
         guard let importedVideoURL else { return }
 
         resetMeasurement()
+        importedVideoJumpCandidates.removeAll(keepingCapacity: true)
         importedVideoThumbnail = thumbnail(for: importedVideoURL, at: importedVideoStartTime)
         statusText = analysisStatusText(for: importedVideoName)
         detector.analyzeVideo(at: importedVideoURL, timeRange: selectedImportedVideoRange)
@@ -212,6 +222,7 @@ final class JumpEstimatorViewModel: ObservableObject {
         resetCalibration()
         airTime = 0
         jumpHeightMeters = 0
+        importedVideoJumpCandidates.removeAll(keepingCapacity: true)
     }
 
     private var selectedImportedVideoRange: ClosedRange<Double>? {
@@ -290,7 +301,24 @@ final class JumpEstimatorViewModel: ObservableObject {
         airborneStart = nil
 
         guard duration >= minimumFlightTime else {
-            statusText = "Movement was too short to count as a jump. Try again."
+            if inputMode != .importedVideo {
+                statusText = "Movement was too short to count as a jump. Try again."
+            }
+            return
+        }
+
+        if inputMode == .importedVideo {
+            importedVideoJumpCandidates.append(
+                JumpCandidate(
+                    duration: duration,
+                    takeoffTime: takeoffTime,
+                    landingTime: landingTime
+                )
+            )
+            statusText = String(
+                format: "Found jump candidate %.0f ms long. Finishing scan to keep the strongest jump.",
+                duration * 1000.0
+            )
             return
         }
 
@@ -298,24 +326,38 @@ final class JumpEstimatorViewModel: ObservableObject {
 
         let estimatedHeight = gravity * pow(duration, 2) / 8.0
         jumpHeightMeters = estimatedHeight
-
-        if inputMode == .importedVideo {
-            updateImportedVideoSelection(start: takeoffTime, end: landingTime)
-            if let importedVideoURL {
-                importedVideoThumbnail = importedVideoStartThumbnail ?? thumbnail(for: importedVideoURL, at: takeoffTime)
-            }
-            statusText = String(
-                format: "Estimated jump: %.0f cm from %.0f ms airtime. Start and end frames were selected automatically.",
-                estimatedHeight * 100.0,
-                duration * 1000.0
-            )
-            return
-        }
-
         statusText = String(
             format: "Estimated jump: %.0f cm from %.0f ms airtime.",
             estimatedHeight * 100.0,
             duration * 1000.0
+        )
+    }
+
+    private func finalizeImportedVideoAnalysis() {
+        guard
+            let bestJump = importedVideoJumpCandidates.max(by: { lhs, rhs in
+                lhs.duration < rhs.duration
+            })
+        else {
+            statusText = "Video analysis finished, but no jump was confidently detected."
+            return
+        }
+
+        airTime = bestJump.duration
+
+        let estimatedHeight = gravity * pow(bestJump.duration, 2) / 8.0
+        jumpHeightMeters = estimatedHeight
+
+        updateImportedVideoSelection(start: bestJump.takeoffTime, end: bestJump.landingTime)
+
+        if let importedVideoURL {
+            importedVideoThumbnail = importedVideoStartThumbnail ?? thumbnail(for: importedVideoURL, at: bestJump.takeoffTime)
+        }
+
+        statusText = String(
+            format: "Estimated jump: %.0f cm from %.0f ms airtime. Extra foot-off-floor moments were ignored and the strongest jump was selected automatically.",
+            estimatedHeight * 100.0,
+            bestJump.duration * 1000.0
         )
     }
 }
