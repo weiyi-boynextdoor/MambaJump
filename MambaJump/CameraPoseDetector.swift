@@ -73,7 +73,7 @@ final class CameraPoseDetector: NSObject, ObservableObject {
         }
     }
 
-    func analyzeVideo(at url: URL) {
+    func analyzeVideo(at url: URL, timeRange: ClosedRange<Double>? = nil) {
         stop()
 
         visionQueue.async { [weak self] in
@@ -88,7 +88,7 @@ final class CameraPoseDetector: NSObject, ObservableObject {
                 self.onObservation?(nil)
             }
 
-            let success = self.processVideoAsset(at: url)
+            let success = self.processVideoAsset(at: url, timeRange: timeRange)
             self.isAnalyzingVideo = false
 
             DispatchQueue.main.async {
@@ -241,7 +241,7 @@ final class CameraPoseDetector: NSObject, ObservableObject {
         }
     }
 
-    private func processVideoAsset(at url: URL) -> Bool {
+    private func processVideoAsset(at url: URL, timeRange: ClosedRange<Double>?) -> Bool {
         let asset = AVURLAsset(url: url)
 
         guard
@@ -261,6 +261,16 @@ final class CameraPoseDetector: NSObject, ObservableObject {
 
         guard reader.canAdd(output) else { return false }
         reader.add(output)
+
+        if let timeRange {
+            let start = max(0, timeRange.lowerBound)
+            let duration = max(0, timeRange.upperBound - start)
+            reader.timeRange = CMTimeRange(
+                start: CMTime(seconds: start, preferredTimescale: 600),
+                duration: CMTime(seconds: duration, preferredTimescale: 600)
+            )
+        }
+
         reader.startReading()
 
         let orientation = orientation(for: track.preferredTransform)

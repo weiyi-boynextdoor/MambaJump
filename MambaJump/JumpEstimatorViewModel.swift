@@ -21,12 +21,18 @@ final class JumpEstimatorViewModel: ObservableObject {
     @Published var inputMode: InputMode = .liveCamera
     @Published var importedVideoName = ""
     @Published var importedVideoThumbnail: UIImage?
+    @Published var importedVideoDuration = 0.0
+    @Published var importedVideoStartTime = 0.0
+    @Published var importedVideoEndTime = 0.0
+    @Published var importedVideoStartThumbnail: UIImage?
+    @Published var importedVideoEndThumbnail: UIImage?
 
     let detector = CameraPoseDetector()
 
     private var baselineFootY: CGFloat?
     private var airborneStart: CFTimeInterval?
     private var recentGroundSamples: [CGFloat] = []
+    private var importedVideoURL: URL?
 
     private let baselineWindow = 20
     private let takeoffThreshold: CGFloat = 0.05
@@ -94,8 +100,14 @@ final class JumpEstimatorViewModel: ObservableObject {
 
     func useLiveCamera() {
         inputMode = .liveCamera
+        importedVideoURL = nil
         importedVideoName = ""
         importedVideoThumbnail = nil
+        importedVideoDuration = 0
+        importedVideoStartTime = 0
+        importedVideoEndTime = 0
+        importedVideoStartThumbnail = nil
+        importedVideoEndThumbnail = nil
         resetMeasurement()
         statusText = cameraAuthorized
             ? "Point the camera so your full body stays in frame."
@@ -105,11 +117,35 @@ final class JumpEstimatorViewModel: ObservableObject {
 
     func analyzeImportedVideo(at url: URL) {
         inputMode = .importedVideo
+        importedVideoURL = url
         importedVideoName = url.lastPathComponent
-        importedVideoThumbnail = thumbnail(for: url)
+        importedVideoDuration = duration(for: url)
+        importedVideoStartTime = 0
+        importedVideoEndTime = importedVideoDuration
+        importedVideoThumbnail = thumbnail(for: url, at: importedVideoStartTime)
+        refreshImportedVideoFramePreviews()
+        analyzeSelectedImportedVideo()
+    }
+
+    func setImportedVideoStartTime(_ time: Double) {
+        let clamped = max(0, min(time, importedVideoDuration))
+        importedVideoStartTime = min(clamped, importedVideoEndTime)
+        refreshImportedVideoFramePreviews()
+    }
+
+    func setImportedVideoEndTime(_ time: Double) {
+        let clamped = max(0, min(time, importedVideoDuration))
+        importedVideoEndTime = max(clamped, importedVideoStartTime)
+        refreshImportedVideoFramePreviews()
+    }
+
+    func analyzeSelectedImportedVideo() {
+        guard let importedVideoURL else { return }
+
         resetMeasurement()
-        statusText = "Analyzing \(url.lastPathComponent)..."
-        detector.analyzeVideo(at: url)
+        importedVideoThumbnail = thumbnail(for: importedVideoURL, at: importedVideoStartTime)
+        statusText = analysisStatusText(for: importedVideoName)
+        detector.analyzeVideo(at: importedVideoURL, timeRange: selectedImportedVideoRange)
     }
 
     private func handle(observation: BodyPoseObservation?) {
@@ -180,13 +216,57 @@ final class JumpEstimatorViewModel: ObservableObject {
         jumpHeightMeters = 0
     }
 
-    private func thumbnail(for url: URL) -> UIImage? {
+    private var selectedImportedVideoRange: ClosedRange<Double>? {
+        guard importedVideoDuration > 0 else { return nil }
+
+        let start = max(0, min(importedVideoStartTime, importedVideoDuration))
+        let end = max(start, min(importedVideoEndTime, importedVideoDuration))
+        return start...end
+    }
+
+    private func duration(for url: URL) -> Double {
+        let seconds = AVURLAsset(url: url).duration.seconds
+        return seconds.isFinite ? max(0, seconds) : 0
+    }
+
+    private func refreshImportedVideoFramePreviews() {
+        guard let importedVideoURL else {
+            importedVideoStartThumbnail = nil
+            importedVideoEndThumbnail = nil
+            return
+        }
+
+        importedVideoStartThumbnail = thumbnail(for: importedVideoURL, at: importedVideoStartTime)
+        importedVideoEndThumbnail = thumbnail(for: importedVideoURL, at: importedVideoEndTime)
+    }
+
+    private func analysisStatusText(for videoName: String) -> String {
+        let duration = max(0, importedVideoEndTime - importedVideoStartTime)
+
+        if duration > 0, duration < importedVideoDuration {
+            return String(
+                format: "Analyzing %@ from %.2fs to %.2fs...",
+                videoName,
+                importedVideoStartTime,
+                importedVideoEndTime
+            )
+        }
+
+        return "Analyzing \(videoName)..."
+    }
+
+    private func thumbnail(for url: URL, at seconds: Double) -> UIImage? {
         let asset = AVURLAsset(url: url)
         let generator = AVAssetImageGenerator(asset: asset)
         generator.appliesPreferredTrackTransform = true
         generator.maximumSize = CGSize(width: 640, height: 640)
+        generator.requestedTimeToleranceAfter = CMTime(seconds: 0.05, preferredTimescale: 600)
+        generator.requestedTimeToleranceBefore = CMTime(seconds: 0.05, preferredTimescale: 600)
 
-        for time in [CMTime(seconds: 0.1, preferredTimescale: 600), .zero] {
+        let clampedSeconds = max(0, min(seconds, max(0, asset.duration.seconds)))
+        let requestedTime = CMTime(seconds: clampedSeconds, preferredTimescale: 600)
+
+        for time in [requestedTime, CMTime(seconds: 0.1, preferredTimescale: 600), .zero] {
             if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
                 return UIImage(cgImage: cgImage)
             }

@@ -195,38 +195,156 @@ struct ContentView: View {
     private var importedVideoPreview: some View {
         Group {
             if viewModel.inputMode == .importedVideo, let thumbnail = viewModel.importedVideoThumbnail {
-                HStack(spacing: 14) {
-                    Image(uiImage: thumbnail)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 120, height: 84)
-                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 14) {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .scaledToFill()
+                            .frame(width: 120, height: 84)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Debug Clip")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.white.opacity(0.75))
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Debug Clip")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.75))
 
-                        Text(viewModel.importedVideoName)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(2)
+                            Text(viewModel.importedVideoName)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(2)
 
-                        Text(
-                            viewModel.isAnalyzingImportedVideo
-                                ? "Analyzing imported video"
-                                : "Ready for repeat debugging"
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(.white.opacity(0.82))
+                            Text(
+                                viewModel.isAnalyzingImportedVideo
+                                    ? "Analyzing imported video"
+                                    : "Ready for repeat debugging"
+                            )
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.82))
+                        }
+
+                        Spacer()
                     }
 
-                    Spacer()
+                    trimControls
                 }
                 .foregroundStyle(.white)
                 .padding(14)
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
         }
+    }
+
+    private var trimControls: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if viewModel.importedVideoDuration > 0 {
+                Text("Optional trim")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.75))
+
+                HStack(spacing: 12) {
+                    framePreview(
+                        title: "Start",
+                        image: viewModel.importedVideoStartThumbnail ?? viewModel.importedVideoThumbnail,
+                        time: viewModel.importedVideoStartTime
+                    )
+
+                    framePreview(
+                        title: "End",
+                        image: viewModel.importedVideoEndThumbnail ?? viewModel.importedVideoThumbnail,
+                        time: viewModel.importedVideoEndTime
+                    )
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Start frame")
+                        Spacer()
+                        Text(formattedTime(viewModel.importedVideoStartTime))
+                    }
+                    .font(.footnote)
+
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.importedVideoStartTime },
+                            set: { viewModel.setImportedVideoStartTime($0) }
+                        ),
+                        in: 0...viewModel.importedVideoDuration
+                    )
+                    .tint(.white)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("End frame")
+                        Spacer()
+                        Text(formattedTime(viewModel.importedVideoEndTime))
+                    }
+                    .font(.footnote)
+
+                    Slider(
+                        value: Binding(
+                            get: { viewModel.importedVideoEndTime },
+                            set: { viewModel.setImportedVideoEndTime($0) }
+                        ),
+                        in: 0...viewModel.importedVideoDuration
+                    )
+                    .tint(.white)
+                }
+
+                HStack {
+                    Text("Default keeps the original start and end of the video.")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.72))
+
+                    Spacer()
+
+                    Button(action: viewModel.analyzeSelectedImportedVideo) {
+                        Label("Reanalyze", systemImage: "arrow.clockwise")
+                            .font(.footnote.weight(.semibold))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
+                    .disabled(viewModel.isAnalyzingImportedVideo)
+                }
+            }
+        }
+    }
+
+    private func framePreview(title: String, image: UIImage?, time: Double) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Group {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                } else {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.12))
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 110)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color.white.opacity(0.08))
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            Text("\(title) • \(formattedTime(time))")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.82))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func formattedTime(_ seconds: Double) -> String {
+        let totalCentiseconds = Int((max(0, seconds) * 100).rounded())
+        let minutes = totalCentiseconds / 6000
+        let secs = (totalCentiseconds / 100) % 60
+        let centiseconds = totalCentiseconds % 100
+        return String(format: "%d:%02d.%02d", minutes, secs, centiseconds)
     }
 
     private func metricCard(title: String, primary: String, secondary: String) -> some View {
