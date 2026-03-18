@@ -52,7 +52,6 @@ struct ContentView: View {
                 controls
                 metrics
                 importedVideoPreview
-                instructions
             }
             .padding(20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -228,26 +227,6 @@ struct ContentView: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
         }
-    }
-
-    private var instructions: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Tips")
-                .font(.headline)
-
-            Text("Keep your whole body visible, point the phone from the side or front, and stand far enough back that your feet never leave the frame.")
-            Text("Use the camera button above to switch between the rear camera for room setup and the front camera for self-check framing.")
-            Text("Pick `Photos` to browse your iPhone photo library, or `Files` to import a video from the Files app.")
-            if !viewModel.importedVideoName.isEmpty {
-                Text("Imported video: \(viewModel.importedVideoName)")
-            }
-            Text("For video debugging, import a clip where your full body stays visible from takeoff through landing.")
-            Text("The app estimates height from flight time using h = g × t² / 8, so stable lighting and a clear landing help accuracy.")
-        }
-        .font(.footnote)
-        .foregroundStyle(.white.opacity(0.92))
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
     }
 
     private func metricCard(title: String, primary: String, secondary: String) -> some View {
