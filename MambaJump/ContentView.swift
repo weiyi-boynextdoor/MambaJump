@@ -73,8 +73,8 @@ struct ContentView: View {
         HStack(spacing: 12) {
             metricCard(
                 title: "Jump Height",
-                primary: String(format: "%.2f in", viewModel.jumpHeightInches),
-                secondary: String(format: "%.0f cm", viewModel.jumpHeightMeters * 100.0)
+                primary: String(format: "%.0f cm", viewModel.jumpHeightMeters * 100.0),
+                secondary: "Estimated height"
             )
 
             metricCard(

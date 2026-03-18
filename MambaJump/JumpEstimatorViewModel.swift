@@ -8,7 +8,6 @@ final class JumpEstimatorViewModel: ObservableObject {
     @Published var liveFootHeight = 0.0
     @Published var airTime = 0.0
     @Published var jumpHeightMeters = 0.0
-    @Published var jumpHeightInches = 0.0
     @Published var isAirborne = false
     @Published var cameraAuthorized = false
     @Published var isUsingFrontCamera = false
@@ -133,10 +132,8 @@ final class JumpEstimatorViewModel: ObservableObject {
 
         let estimatedHeight = gravity * pow(duration, 2) / 8.0
         jumpHeightMeters = estimatedHeight
-        jumpHeightInches = estimatedHeight * 39.3701
         statusText = String(
-            format: "Estimated jump: %.2f in (%.0f cm) from %.0f ms airtime.",
-            jumpHeightInches,
+            format: "Estimated jump: %.0f cm from %.0f ms airtime.",
             estimatedHeight * 100.0,
             duration * 1000.0
         )
