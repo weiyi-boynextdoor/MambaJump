@@ -30,11 +30,23 @@ struct ContentView: View {
 
     var body: some View {
         ZStack {
-            CameraPreviewView(
-                session: viewModel.detector.session,
-                isMirrored: viewModel.isUsingFrontCamera
-            )
+            if viewModel.inputMode == .liveCamera {
+                CameraPreviewView(
+                    session: viewModel.detector.session,
+                    isMirrored: viewModel.isUsingFrontCamera
+                )
+                    .ignoresSafeArea()
+            } else {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.1, blue: 0.12),
+                        Color(red: 0.03, green: 0.04, blue: 0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
                 .ignoresSafeArea()
+            }
 
             LinearGradient(
                 colors: [
@@ -49,9 +61,13 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 18) {
                 header
-                controls
-                metrics
-                importedVideoPreview
+                if viewModel.inputMode == .idle {
+                    sourcePickerCard
+                } else {
+                    controls
+                    metrics
+                    importedVideoPreview
+                }
             }
             .padding(20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -114,18 +130,20 @@ struct ContentView: View {
 
                 Spacer()
 
-                Button(action: viewModel.switchCamera) {
-                    Label(
-                        viewModel.isUsingFrontCamera ? "Front Cam" : "Back Cam",
-                        systemImage: "camera.rotate"
-                    )
-                    .font(.footnote.weight(.semibold))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 10)
-                    .background(Color.white.opacity(0.16), in: Capsule())
+                if viewModel.inputMode == .liveCamera {
+                    Button(action: viewModel.switchCamera) {
+                        Label(
+                            viewModel.isUsingFrontCamera ? "Front Cam" : "Back Cam",
+                            systemImage: "camera.rotate"
+                        )
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.16), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.white)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(.white)
             }
 
             Text(viewModel.statusText)
@@ -172,6 +190,58 @@ struct ContentView: View {
         }
         .buttonStyle(.plain)
         .foregroundStyle(.white)
+    }
+
+    private var sourcePickerCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Choose Input")
+                .font(.title3.weight(.semibold))
+
+            Text("Start with an imported video, or switch on the live camera when you're ready.")
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.82))
+
+            HStack(spacing: 12) {
+                PhotosPicker(
+                    selection: $selectedVideoItem,
+                    matching: .videos,
+                    photoLibrary: .shared()
+                ) {
+                    Label("Photos", systemImage: "photo.on.rectangle")
+                        .font(.footnote.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+
+                Button(action: {
+                    isImportingVideo = true
+                }) {
+                    Label("Files", systemImage: "folder")
+                        .font(.footnote.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                }
+            }
+
+            Button(action: viewModel.useLiveCamera) {
+                Label("Use Camera", systemImage: "video")
+                    .font(.footnote.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 12)
+                    .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+            .buttonStyle(.plain)
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.white)
+        .padding(18)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .frame(maxWidth: 460)
     }
 
     private var metrics: some View {

@@ -6,11 +6,12 @@ import UIKit
 @MainActor
 final class JumpEstimatorViewModel: ObservableObject {
     enum InputMode {
+        case idle
         case liveCamera
         case importedVideo
     }
 
-    @Published var statusText = "Point the camera so your full body stays in frame."
+    @Published var statusText = "Choose a video or the live camera to start."
     @Published var liveFootHeight = 0.0
     @Published var airTime = 0.0
     @Published var jumpHeightMeters = 0.0
@@ -18,7 +19,7 @@ final class JumpEstimatorViewModel: ObservableObject {
     @Published var cameraAuthorized = false
     @Published var isUsingFrontCamera = false
     @Published var isAnalyzingImportedVideo = false
-    @Published var inputMode: InputMode = .liveCamera
+    @Published var inputMode: InputMode = .idle
     @Published var importedVideoName = ""
     @Published var importedVideoThumbnail: UIImage?
     @Published var importedVideoDuration = 0.0
@@ -84,7 +85,7 @@ final class JumpEstimatorViewModel: ObservableObject {
     }
 
     func start() {
-        detector.start()
+        statusText = "Choose a video or the live camera to start."
     }
 
     func stop() {
@@ -117,6 +118,7 @@ final class JumpEstimatorViewModel: ObservableObject {
 
     func analyzeImportedVideo(at url: URL) {
         inputMode = .importedVideo
+        detector.stop()
         importedVideoURL = url
         importedVideoName = url.lastPathComponent
         importedVideoDuration = duration(for: url)
