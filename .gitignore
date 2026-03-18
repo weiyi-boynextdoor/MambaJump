@@ -40,3 +40,30 @@ fastlane/test_output/
 
 # macOS
 .DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+site/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+env/
+ENV/
+
+# test resources
+scripts/inputs/
+scripts/outputs/
+
+.vscode/
