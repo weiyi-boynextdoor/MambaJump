@@ -67,3 +67,5 @@ scripts/inputs/
 scripts/outputs/
 
 .vscode/
+
+.DerivedData/

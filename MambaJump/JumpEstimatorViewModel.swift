@@ -122,23 +122,19 @@ final class JumpEstimatorViewModel: ObservableObject {
         importedVideoURL = url
         importedVideoName = url.lastPathComponent
         importedVideoDuration = duration(for: url)
-        importedVideoStartTime = 0
-        importedVideoEndTime = importedVideoDuration
+        updateImportedVideoSelection(start: 0, end: importedVideoDuration)
         importedVideoThumbnail = thumbnail(for: url, at: importedVideoStartTime)
-        refreshImportedVideoFramePreviews()
         analyzeSelectedImportedVideo()
     }
 
     func setImportedVideoStartTime(_ time: Double) {
         let clamped = max(0, min(time, importedVideoDuration))
-        importedVideoStartTime = min(clamped, importedVideoEndTime)
-        refreshImportedVideoFramePreviews()
+        updateImportedVideoSelection(start: min(clamped, importedVideoEndTime), end: importedVideoEndTime)
     }
 
     func setImportedVideoEndTime(_ time: Double) {
         let clamped = max(0, min(time, importedVideoDuration))
-        importedVideoEndTime = max(clamped, importedVideoStartTime)
-        refreshImportedVideoFramePreviews()
+        updateImportedVideoSelection(start: importedVideoStartTime, end: max(clamped, importedVideoStartTime))
     }
 
     func analyzeSelectedImportedVideo() {
@@ -181,7 +177,7 @@ final class JumpEstimatorViewModel: ObservableObject {
 
             if delta <= landingThreshold, let airborneStart {
                 let duration = observation.timestamp - airborneStart
-                endJump(with: duration)
+                endJump(with: duration, takeoffTime: airborneStart, landingTime: observation.timestamp)
             }
         } else {
             statusText = "Ready. Jump straight up while keeping your feet visible."
@@ -242,6 +238,14 @@ final class JumpEstimatorViewModel: ObservableObject {
         importedVideoEndThumbnail = thumbnail(for: importedVideoURL, at: importedVideoEndTime)
     }
 
+    private func updateImportedVideoSelection(start: Double, end: Double) {
+        let clampedStart = max(0, min(start, importedVideoDuration))
+        let clampedEnd = max(clampedStart, min(end, importedVideoDuration))
+        importedVideoStartTime = clampedStart
+        importedVideoEndTime = clampedEnd
+        refreshImportedVideoFramePreviews()
+    }
+
     private func analysisStatusText(for videoName: String) -> String {
         let duration = max(0, importedVideoEndTime - importedVideoStartTime)
 
@@ -277,7 +281,11 @@ final class JumpEstimatorViewModel: ObservableObject {
         return nil
     }
 
-    private func endJump(with duration: CFTimeInterval) {
+    private func endJump(
+        with duration: CFTimeInterval,
+        takeoffTime: CFTimeInterval,
+        landingTime: CFTimeInterval
+    ) {
         isAirborne = false
         airborneStart = nil
 
@@ -290,6 +298,20 @@ final class JumpEstimatorViewModel: ObservableObject {
 
         let estimatedHeight = gravity * pow(duration, 2) / 8.0
         jumpHeightMeters = estimatedHeight
+
+        if inputMode == .importedVideo {
+            updateImportedVideoSelection(start: takeoffTime, end: landingTime)
+            if let importedVideoURL {
+                importedVideoThumbnail = importedVideoStartThumbnail ?? thumbnail(for: importedVideoURL, at: takeoffTime)
+            }
+            statusText = String(
+                format: "Estimated jump: %.0f cm from %.0f ms airtime. Start and end frames were selected automatically.",
+                estimatedHeight * 100.0,
+                duration * 1000.0
+            )
+            return
+        }
+
         statusText = String(
             format: "Estimated jump: %.0f cm from %.0f ms airtime.",
             estimatedHeight * 100.0,
