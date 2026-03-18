@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>MambaJump Web Analyzer</title>
+	<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+	<main class="app-shell">
+		<section class="hero">
+			<p class="eyebrow">Vertical Jump Analyzer</p>
+			<h1>Upload a jump clip, measure airtime, and preview the annotated replay.</h1>
+			<p class="hero-copy">
+				This browser app analyzes a stationary jump video with the same color-tracking idea used in
+				<code>scripts/vert_jump.py</code>. It estimates takeoff and landing from visual motion cues,
+				and renders a marked-up result video right on the page.
+			</p>
+		</section>
+
+		<section class="panel control-panel">
+			<div class="upload-card">
+				<label class="upload-dropzone" for="videoFile">
+					<input id="videoFile" type="file" accept="video/*">
+					<span class="upload-kicker">Drop a file here or click to browse</span>
+					<strong>Choose a jump video</strong>
+					<span class="upload-note">Best results come from a stable camera and a full-body jump in frame.</span>
+				</label>
+			</div>
+
+			<div class="controls">
+				<label>
+					<span>Baseline seconds</span>
+					<input id="baselineSeconds" type="number" min="0.2" max="2" step="0.1" value="0.5">
+				</label>
+				<label>
+					<span>Takeoff threshold ratio</span>
+					<input id="takeoffRatio" type="number" min="0.05" max="0.4" step="0.01" value="0.12">
+				</label>
+				<button id="analyzeButton" type="button" disabled>Analyze jump</button>
+			</div>
+
+			<div id="statusBanner" class="status-banner idle">Select a video to begin.</div>
+		</section>
+
+		<section class="panel results-panel">
+			<div class="metric-grid">
+				<article class="metric-card">
+					<span class="metric-label">Tracking method</span>
+					<strong id="metricMethod">Not started</strong>
+				</article>
+				<article class="metric-card">
+					<span class="metric-label">Airtime</span>
+					<strong id="metricAirtime">--</strong>
+				</article>
+				<article class="metric-card">
+					<span class="metric-label">Estimated height</span>
+					<strong id="metricHeight">--</strong>
+				</article>
+				<article class="metric-card">
+					<span class="metric-label">Takeoff / landing</span>
+					<strong id="metricFrames">--</strong>
+				</article>
+			</div>
+		</section>
+
+		<section class="panel preview-panel">
+			<div class="preview-column">
+				<div class="preview-heading">
+					<h2>Original video</h2>
+					<p id="originalMeta">No file loaded.</p>
+				</div>
+				<video id="sourcePreview" controls playsinline></video>
+			</div>
+
+			<div class="preview-column">
+				<div class="preview-heading">
+					<h2>Annotated replay</h2>
+					<div class="preview-actions">
+						<p id="annotatedMeta">Run an analysis to generate a replay.</p>
+						<a id="downloadLink" class="download-link disabled" href="#" download="annotated-jump.webm">Download video</a>
+					</div>
+				</div>
+				<video id="resultPreview" controls playsinline></video>
+				<canvas id="analysisCanvas" hidden></canvas>
+			</div>
+		</section>
+	</main>
+
+	<script src="./app.js"></script>
+</body>
+</html>
