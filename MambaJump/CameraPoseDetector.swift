@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreImage
+import ImageIO
 import QuartzCore
 import SwiftUI
 import Vision
@@ -9,6 +10,7 @@ struct BodyPoseObservation {
     let ankleY: CGFloat
     let kneeY: CGFloat
     let hipY: CGFloat
+    let timestamp: CFTimeInterval
 }
 
 final class CameraPoseDetector: NSObject, ObservableObject {
@@ -17,14 +19,18 @@ final class CameraPoseDetector: NSObject, ObservableObject {
     var onObservation: ((BodyPoseObservation?) -> Void)?
     var onAuthorizationChange: ((Bool) -> Void)?
     var onCameraPositionChange: ((AVCaptureDevice.Position) -> Void)?
+    var onVideoAnalysisStateChange: ((Bool) -> Void)?
+    var onVideoAnalysisCompletion: ((Bool) -> Void)?
 
     private let sessionQueue = DispatchQueue(label: "mambajump.camera.session")
     private let visionQueue = DispatchQueue(label: "mambajump.camera.vision")
     private let videoOutput = AVCaptureVideoDataOutput()
     private var latestTimestamp = CMTime.invalid
     private var currentCameraPosition: AVCaptureDevice.Position = .back
+    private var isAnalyzingVideo = false
 
     func start() {
+        guard !isAnalyzingVideo else { return }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             onAuthorizationChange?(true)
@@ -49,6 +55,7 @@ final class CameraPoseDetector: NSObject, ObservableObject {
     }
 
     func switchCamera() {
+        guard !isAnalyzingVideo else { return }
         sessionQueue.async { [weak self] in
             guard let self else { return }
 
@@ -62,6 +69,31 @@ final class CameraPoseDetector: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.onCameraPositionChange?(nextPosition)
                 self.onObservation?(nil)
+            }
+        }
+    }
+
+    func analyzeVideo(at url: URL) {
+        stop()
+
+        visionQueue.async { [weak self] in
+            guard let self else { return }
+            guard !self.isAnalyzingVideo else { return }
+
+            self.isAnalyzingVideo = true
+            self.latestTimestamp = .invalid
+
+            DispatchQueue.main.async {
+                self.onVideoAnalysisStateChange?(true)
+                self.onObservation?(nil)
+            }
+
+            let success = self.processVideoAsset(at: url)
+            self.isAnalyzingVideo = false
+
+            DispatchQueue.main.async {
+                self.onVideoAnalysisStateChange?(false)
+                self.onVideoAnalysisCompletion?(success)
             }
         }
     }
@@ -133,22 +165,33 @@ final class CameraPoseDetector: NSObject, ObservableObject {
     }
 
     private func processBodyPose(in sampleBuffer: CMSampleBuffer) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
-            onObservation?(nil)
-            return
-        }
-
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         guard timestamp != latestTimestamp else { return }
         latestTimestamp = timestamp
 
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else {
+            DispatchQueue.main.async { [weak self] in
+                self?.onObservation?(nil)
+            }
+            return
+        }
+
+        processPixelBuffer(
+            pixelBuffer,
+            orientation: currentCameraPosition == .front ? .leftMirrored : .right,
+            timestamp: timestamp.seconds
+        )
+    }
+
+    private func processPixelBuffer(
+        _ pixelBuffer: CVPixelBuffer,
+        orientation: CGImagePropertyOrientation,
+        timestamp: CFTimeInterval
+    ) {
         let request = VNDetectHumanBodyPoseRequest()
 
         do {
-            let handler = VNImageRequestHandler(
-                cvPixelBuffer: pixelBuffer,
-                orientation: currentCameraPosition == .front ? .leftMirrored : .right
-            )
+            let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: orientation)
             try handler.perform([request])
 
             guard let result = request.results?.first else {
@@ -180,7 +223,13 @@ final class CameraPoseDetector: NSObject, ObservableObject {
 
             // Prefer ankles, but allow knees when feet are partially occluded.
             let footY = medianY(from: anklePoints) ?? max(0, kneeY - 0.08)
-            let observation = BodyPoseObservation(footY: footY, ankleY: ankleY, kneeY: kneeY, hipY: hipY)
+            let observation = BodyPoseObservation(
+                footY: footY,
+                ankleY: ankleY,
+                kneeY: kneeY,
+                hipY: hipY,
+                timestamp: timestamp
+            )
 
             DispatchQueue.main.async { [weak self] in
                 self?.onObservation?(observation)
@@ -189,6 +238,61 @@ final class CameraPoseDetector: NSObject, ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.onObservation?(nil)
             }
+        }
+    }
+
+    private func processVideoAsset(at url: URL) -> Bool {
+        let asset = AVURLAsset(url: url)
+
+        guard
+            let track = asset.tracks(withMediaType: .video).first,
+            let reader = try? AVAssetReader(asset: asset)
+        else {
+            return false
+        }
+
+        let output = AVAssetReaderTrackOutput(
+            track: track,
+            outputSettings: [
+                kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA
+            ]
+        )
+        output.alwaysCopiesSampleData = false
+
+        guard reader.canAdd(output) else { return false }
+        reader.add(output)
+        reader.startReading()
+
+        let orientation = orientation(for: track.preferredTransform)
+        var processedFrameCount = 0
+
+        while reader.status == .reading, let sampleBuffer = output.copyNextSampleBuffer() {
+            let frameNumber = processedFrameCount
+            processedFrameCount += 1
+
+            // Analyze every other frame to keep imports responsive while staying stable enough for airtime detection.
+            guard frameNumber.isMultiple(of: 2) else { continue }
+            guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { continue }
+
+            let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
+            processPixelBuffer(pixelBuffer, orientation: orientation, timestamp: timestamp)
+        }
+
+        return reader.status == .completed && processedFrameCount > 0
+    }
+
+    private func orientation(for transform: CGAffineTransform) -> CGImagePropertyOrientation {
+        switch (transform.a, transform.b, transform.c, transform.d) {
+        case (0, 1, -1, 0):
+            return .right
+        case (0, -1, 1, 0):
+            return .left
+        case (1, 0, 0, 1):
+            return .up
+        case (-1, 0, 0, -1):
+            return .down
+        default:
+            return .up
         }
     }
 

@@ -22,6 +22,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>The camera is used to detect your body pose and estimate vertical jump height from airtime.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Your photo library is used so you can import existing videos and debug jump detection without recording a new clip each time.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -42,4 +44,3 @@
 	</array>
 </dict>
 </plist>
-

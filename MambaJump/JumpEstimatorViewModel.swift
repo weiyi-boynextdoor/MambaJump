@@ -1,9 +1,15 @@
 import AVFoundation
 import CoreGraphics
 import Foundation
+import UIKit
 
 @MainActor
 final class JumpEstimatorViewModel: ObservableObject {
+    enum InputMode {
+        case liveCamera
+        case importedVideo
+    }
+
     @Published var statusText = "Point the camera so your full body stays in frame."
     @Published var liveFootHeight = 0.0
     @Published var airTime = 0.0
@@ -11,6 +17,10 @@ final class JumpEstimatorViewModel: ObservableObject {
     @Published var isAirborne = false
     @Published var cameraAuthorized = false
     @Published var isUsingFrontCamera = false
+    @Published var isAnalyzingImportedVideo = false
+    @Published var inputMode: InputMode = .liveCamera
+    @Published var importedVideoName = ""
+    @Published var importedVideoThumbnail: UIImage?
 
     let detector = CameraPoseDetector()
 
@@ -45,6 +55,26 @@ final class JumpEstimatorViewModel: ObservableObject {
                 self?.isUsingFrontCamera = position == .front
             }
         }
+
+        detector.onVideoAnalysisStateChange = { [weak self] isRunning in
+            Task { @MainActor in
+                self?.isAnalyzingImportedVideo = isRunning
+            }
+        }
+
+        detector.onVideoAnalysisCompletion = { [weak self] success in
+            Task { @MainActor in
+                guard let self else { return }
+
+                if success {
+                    if self.airTime == 0 {
+                        self.statusText = "Video analysis finished, but no jump was confidently detected."
+                    }
+                } else {
+                    self.statusText = "Could not analyze that video. Try a clear clip with your full body visible."
+                }
+            }
+        }
     }
 
     func start() {
@@ -56,16 +86,41 @@ final class JumpEstimatorViewModel: ObservableObject {
     }
 
     func switchCamera() {
+        guard inputMode == .liveCamera else { return }
         resetCalibration()
         statusText = "Switching camera. Hold still to recalibrate."
         detector.switchCamera()
     }
 
+    func useLiveCamera() {
+        inputMode = .liveCamera
+        importedVideoName = ""
+        importedVideoThumbnail = nil
+        resetMeasurement()
+        statusText = cameraAuthorized
+            ? "Point the camera so your full body stays in frame."
+            : "Camera access is required to estimate jump height."
+        detector.start()
+    }
+
+    func analyzeImportedVideo(at url: URL) {
+        inputMode = .importedVideo
+        importedVideoName = url.lastPathComponent
+        importedVideoThumbnail = thumbnail(for: url)
+        resetMeasurement()
+        statusText = "Analyzing \(url.lastPathComponent)..."
+        detector.analyzeVideo(at: url)
+    }
+
     private func handle(observation: BodyPoseObservation?) {
         guard let observation else {
-            statusText = cameraAuthorized
-                ? "Body not detected. Step back until your full body is visible."
-                : "Camera access is required to estimate jump height."
+            if isAnalyzingImportedVideo {
+                statusText = "Scanning imported video for a full-body pose..."
+            } else {
+                statusText = cameraAuthorized
+                    ? "Body not detected. Step back until your full body is visible."
+                    : "Camera access is required to estimate jump height."
+            }
             return
         }
 
@@ -87,7 +142,7 @@ final class JumpEstimatorViewModel: ObservableObject {
             statusText = "Airborne. Keep your full body in frame."
 
             if delta <= landingThreshold, let airborneStart {
-                let duration = CACurrentMediaTime() - airborneStart
+                let duration = observation.timestamp - airborneStart
                 endJump(with: duration)
             }
         } else {
@@ -95,7 +150,7 @@ final class JumpEstimatorViewModel: ObservableObject {
 
             if delta >= takeoffThreshold {
                 isAirborne = true
-                airborneStart = CACurrentMediaTime()
+                airborneStart = observation.timestamp
                 statusText = "Jump detected. Measuring airtime."
             }
         }
@@ -117,6 +172,27 @@ final class JumpEstimatorViewModel: ObservableObject {
         recentGroundSamples.removeAll(keepingCapacity: true)
         isAirborne = false
         liveFootHeight = 0
+    }
+
+    private func resetMeasurement() {
+        resetCalibration()
+        airTime = 0
+        jumpHeightMeters = 0
+    }
+
+    private func thumbnail(for url: URL) -> UIImage? {
+        let asset = AVURLAsset(url: url)
+        let generator = AVAssetImageGenerator(asset: asset)
+        generator.appliesPreferredTrackTransform = true
+        generator.maximumSize = CGSize(width: 640, height: 640)
+
+        for time in [CMTime(seconds: 0.1, preferredTimescale: 600), .zero] {
+            if let cgImage = try? generator.copyCGImage(at: time, actualTime: nil) {
+                return UIImage(cgImage: cgImage)
+            }
+        }
+
+        return nil
     }
 
     private func endJump(with duration: CFTimeInterval) {
