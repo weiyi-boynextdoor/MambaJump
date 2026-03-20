@@ -5,6 +5,20 @@ import UIKit
 
 @MainActor
 final class JumpEstimatorViewModel: ObservableObject {
+    private enum Settings {
+        static let maximumAirtimeKey = "maximumAirtime"
+        static let defaultMaximumAirtime = 1.2
+
+        static func loadMaximumAirtime() -> Double {
+            let storedValue = UserDefaults.standard.double(forKey: maximumAirtimeKey)
+            return storedValue > 0 ? storedValue : defaultMaximumAirtime
+        }
+
+        static func saveMaximumAirtime(_ value: Double) {
+            UserDefaults.standard.set(value, forKey: maximumAirtimeKey)
+        }
+    }
+
     private struct JumpCandidate {
         let duration: CFTimeInterval
         let takeoffTime: CFTimeInterval
@@ -33,6 +47,7 @@ final class JumpEstimatorViewModel: ObservableObject {
     @Published var importedVideoEndTime = 0.0
     @Published var importedVideoStartThumbnail: UIImage?
     @Published var importedVideoEndThumbnail: UIImage?
+    @Published private(set) var maximumAirtime = Settings.loadMaximumAirtime()
 
     let detector = CameraPoseDetector()
 
@@ -156,6 +171,13 @@ final class JumpEstimatorViewModel: ObservableObject {
         detector.analyzeVideo(at: importedVideoURL, timeRange: selectedImportedVideoRange)
     }
 
+    func setMaximumAirtime(_ value: Double) {
+        let clampedValue = max(0.2, min(value, 3.0))
+        guard abs(clampedValue - maximumAirtime) > 0.0001 else { return }
+        maximumAirtime = clampedValue
+        Settings.saveMaximumAirtime(clampedValue)
+    }
+
     private func handle(observation: BodyPoseObservation?) {
         guard let observation else {
             if isAnalyzingImportedVideo {
@@ -184,6 +206,11 @@ final class JumpEstimatorViewModel: ObservableObject {
 
         if isAirborne {
             statusText = "Airborne. Keep your full body in frame."
+
+            if let airborneStart, observation.timestamp - airborneStart > maximumAirtime {
+                cancelAirbornePeriod()
+                return
+            }
 
             if delta <= landingThreshold, let airborneStart {
                 let duration = observation.timestamp - airborneStart
@@ -307,6 +334,22 @@ final class JumpEstimatorViewModel: ObservableObject {
             return
         }
 
+        guard duration <= maximumAirtime else {
+            if inputMode == .importedVideo {
+                statusText = String(
+                    format: "Ignored a %.2fs airtime segment because it exceeded the %.2fs max airtime setting.",
+                    duration,
+                    maximumAirtime
+                )
+            } else {
+                statusText = String(
+                    format: "Ignored airtime longer than %.2fs. Increase Max Airtime in Settings only if you need to.",
+                    maximumAirtime
+                )
+            }
+            return
+        }
+
         if inputMode == .importedVideo {
             importedVideoJumpCandidates.append(
                 JumpCandidate(
@@ -330,6 +373,15 @@ final class JumpEstimatorViewModel: ObservableObject {
             format: "Estimated jump: %.0f cm from %.0f ms airtime.",
             estimatedHeight * 100.0,
             duration * 1000.0
+        )
+    }
+
+    private func cancelAirbornePeriod() {
+        isAirborne = false
+        airborneStart = nil
+        statusText = String(
+            format: "Ignored airtime longer than %.2fs. Increase Max Airtime in Settings only if you need to.",
+            maximumAirtime
         )
     }
 

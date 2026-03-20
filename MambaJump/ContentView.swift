@@ -27,6 +27,7 @@ struct ContentView: View {
     @StateObject private var viewModel = JumpEstimatorViewModel()
     @State private var isImportingVideo = false
     @State private var selectedVideoItem: PhotosPickerItem?
+    @State private var isShowingSettings = false
 
     var body: some View {
         ZStack {
@@ -73,6 +74,9 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $isShowingSettings) {
+            SettingsView(viewModel: viewModel)
+        }
         .onAppear {
             viewModel.start()
         }
@@ -129,6 +133,18 @@ struct ContentView: View {
                     .font(.system(size: 34, weight: .bold, design: .rounded))
 
                 Spacer()
+
+                Button {
+                    isShowingSettings = true
+                } label: {
+                    Label("Settings", systemImage: "gearshape")
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(Color.white.opacity(0.16), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.white)
 
                 if viewModel.inputMode == .liveCamera {
                     Button(action: viewModel.switchCamera) {
@@ -437,5 +453,74 @@ struct ContentView: View {
             RoundedRectangle(cornerRadius: 24, style: .continuous)
                 .fill(Color.white.opacity(0.14))
         )
+    }
+}
+
+private struct SettingsView: View {
+    @ObservedObject var viewModel: JumpEstimatorViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.08, green: 0.1, blue: 0.12),
+                        Color(red: 0.03, green: 0.04, blue: 0.05)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+                .ignoresSafeArea()
+
+                VStack(alignment: .leading, spacing: 18) {
+                    Text("Jump Detection")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.white)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Maximum Airtime")
+                                .font(.headline)
+                            Spacer()
+                            Text(String(format: "%.1fs", viewModel.maximumAirtime))
+                                .font(.headline.monospacedDigit())
+                                .foregroundStyle(.white.opacity(0.82))
+                        }
+
+                        Slider(
+                            value: Binding(
+                                get: { viewModel.maximumAirtime },
+                                set: { viewModel.setMaximumAirtime($0) }
+                            ),
+                            in: 0.2...3.0,
+                            step: 0.1
+                        )
+                        .tint(.white)
+
+                        Text("Caps detected airtime so gaps like stepping out of frame or losing body tracking don't get mistaken for a giant jump. A value around 1.2s is a good default.")
+                            .font(.footnote)
+                            .foregroundStyle(.white.opacity(0.78))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(18)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+                    Spacer()
+                }
+                .padding(20)
+            }
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .foregroundStyle(.white)
+                }
+            }
+            .navigationTitle("Settings")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .preferredColorScheme(.dark)
     }
 }
