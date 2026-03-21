@@ -69,3 +69,10 @@ scripts/outputs/
 .vscode/
 
 .DerivedData/
+
+# Go server runtime data
+server/data/
+server/uploads/
+server/.gocache/
+server/server
+server/*.exe
